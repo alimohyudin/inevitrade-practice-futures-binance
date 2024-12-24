@@ -2,7 +2,7 @@ import backtrader as bt
 import datetime
 
 total_closed_positions = 0
-
+a_calculated_profit = 0
 class MACDStrategy(bt.Strategy):
     params = (
         ('enable_long_strategy', True),
@@ -20,14 +20,25 @@ class MACDStrategy(bt.Strategy):
         ('ema_periods', [9, 21, 50, 100, 200]),
         ('start_date', None),
         ('end_date', None),
+        ('lookback_bars', 10),
+
     )
     
 
-    def log(self, txt, num):
+    def log(self, txt):
+        global a_calculated_profit
+
         dt = self.datas[0].datetime.datetime(0)
-        #print(self.datas[0].datetime.datetime(0))
         
-        print(f'{dt}, {txt}, {num}, {self.position.size}')
+        print("==================================") if txt != 'closing' else None
+        print(f'{dt}, {txt}, {self.data.close[0]}, {self.position.size}')
+        if(txt == 'closing'):
+            print("Verifying Profit: ", self.position.size * (self.data.close[0] - self.position.price))
+            print(f"{self.position.size} * ({self.data.close[0]} - {self.position.price})")
+            a_calculated_profit += self.position.size * (self.data.close[0] - self.position.price)
+            print(f"{a_calculated_profit}")
+            print("==================================")
+    
     def __init__(self):
         # Indicators
         self.rsi = bt.indicators.RSI_Safe(self.data.close, period=self.params.rsi_period)
@@ -44,13 +55,7 @@ class MACDStrategy(bt.Strategy):
         self.bars_since_oversold = None
         self.bars_since_overbought = None
 
-    def next(self):
-        # Date range filtering
-        # if self.params.start_date and self.params.end_date:
-        #     if not (self.params.start_date <= self.datetime.date() <= self.params.end_date):
-        #         return
-        # self.log(f'Close: {self.data.close[0]}')
-        
+    def next(self):        
         # Update `barssince` counters
         if self.rsi[0] <= self.params.rsi_oversold:
             self.bars_since_oversold = 0  # Reset counter
@@ -63,8 +68,8 @@ class MACDStrategy(bt.Strategy):
             self.bars_since_overbought += 1
 
         # Generate signals
-        was_oversold = self.bars_since_oversold is not None and self.bars_since_oversold <= 10
-        was_overbought = self.bars_since_overbought is not None and self.bars_since_overbought <= 10
+        was_oversold = self.bars_since_oversold is not None and self.bars_since_oversold <= self.params.lookback_bars
+        was_overbought = self.bars_since_overbought is not None and self.bars_since_overbought <= self.params.lookback_bars
         crossover_bull = self.macd.macd[0] > self.macd.signal[0]
         crossover_bear = self.macd.macd[0] < self.macd.signal[0]
 
@@ -76,30 +81,41 @@ class MACDStrategy(bt.Strategy):
         if self.buy_signal and self.params.enable_long_strategy:
             self.close_short()
             if not self.position:
-                print("==================================")
-                self.log("LONG", self.data.close[0])
-                self.buy(size=cerebro.broker.getcash() / self.data.close[0], exectype=bt.Order.Market)
-                
+                self.log("LONG")
+                self.buy(size=cerebro.broker.getcash() / self.data.close[0])
+            # self.set_stop_loss_take_profit('long')
+
 
         # Short Strategy
         if self.sell_signal and self.params.enable_short_strategy:
             self.close_long()
             if not self.position:
-                print("==================================")
-                self.log("SHORT", self.data.close[0])
-                self.sell(size=cerebro.broker.getcash() / self.data.close[0], exectype=bt.Order.Market)
-                
+                self.log("SHORT")
+                self.sell(size=cerebro.broker.getcash() / self.data.close[0])
+            # self.set_stop_loss_take_profit('short')
+    
+
+    def set_stop_loss_take_profit(self, position_type):
+        print("Setting Stop Loss and Take Profit")
+        if position_type == 'long':
+            stop_loss = self.data.close[0] * (1 - self.params.long_stoploss / 100)
+            take_profit = self.data.close[0] * (1 + self.params.long_takeprofit / 100)
+        elif position_type == 'short':
+            stop_loss = self.data.close[0] * (1 + self.params.short_stoploss / 100)
+            take_profit = self.data.close[0] * (1 - self.params.short_takeprofit / 100)
+        self.sell(exectype=bt.Order.Stop, price=stop_loss)
+        self.sell(exectype=bt.Order.Limit, price=take_profit)
 
     def close_long(self):
         if self.position.size > 0:
-            self.log("closing LONG", self.data.close[0])
+            self.log("closing")
             global total_closed_positions
             total_closed_positions += 1
             self.close()
 
     def close_short(self):
         if self.position.size < 0:
-            self.log("closing SHORT", self.data.close[0])
+            self.log("closing")
             global total_closed_positions
             total_closed_positions += 1
             self.close()
@@ -126,6 +142,7 @@ print(f'Starting Portfolio Value: {cerebro.broker.getvalue()}')
 cerebro.run()
 print(f'Ending Portfolio Value: {cerebro.broker.getvalue()}')
 print(f'Total Closed Positions: {total_closed_positions}')
+print(f'Total Calculated Profit: {a_calculated_profit}')
 
 # Visualization
 cerebro.plot()

@@ -2,3 +2,4 @@ ccxt
 matplotlib
 pandas
 mplfinance
+backtrader
