@@ -4,7 +4,7 @@ from models.Position import Position
 
 a_total_closed_positions = 0
 a_calculated_profit = 0
-a_max_trades = 99
+a_max_trades = 9999
 a_position_closed = True
 a_last_position = Position()
 a_signal = ""
