@@ -1,6 +1,9 @@
 import backtrader as bt
-import datetime
+from backtrader_binance import BinanceStore
 from models.Position import Position
+
+import asyncio
+asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 
 a_log_trade = -1
@@ -228,23 +231,24 @@ class MACDStrategy(bt.Strategy):
         print(f"Final Portfolio Value: {cerebro.broker.getvalue()}")
 
 
-
-
-
-
-
-
-# Data preparation
 cerebro = bt.Cerebro()
-data = bt.feeds.GenericCSVData(
-    dataname='./backtrader/BTCUSDT-3min-3mon.csv',  # Replace with your data file path
-    dtformat='%m-%d-%YT%H:%M:%S.000Z',  # New format to match '2024-12-01T00:00:00.000Z'
-    timeframe=bt.TimeFrame.Minutes,
-    fromdate=datetime.datetime(2024, 12, 9),
-    todate=datetime.datetime(2024, 12, 31),
-    # compression=0,
-    # openinterest=-1,
+# Configure BinanceStore with API keys
+binance_store = BinanceStore(
+    api_key='',
+    api_secret='',
+    testnet=False,  # Set to False for live trading
+    coin_target='USDT'
 )
+
+# Create a data feed for a specific symbol
+data = binance_store.getdata(
+    dataname='BTCUSDT',  # Pair
+    timeframe=bt.TimeFrame.Minutes,
+    compression=1,  # 1-minute intervals
+    ohlcv_limit=500,  # Number of candles to fetch
+    live=True
+)
+
 cerebro.adddata(data)
 
 # Add strategy
@@ -260,4 +264,4 @@ print(f'Total Closed Positions: {a_total_closed_positions}')
 print(f'Total Calculated Profit: {a_calculated_profit}')
 
 # Visualization
-# cerebro.plot()
+cerebro.plot()
