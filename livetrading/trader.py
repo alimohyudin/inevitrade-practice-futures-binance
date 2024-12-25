@@ -128,6 +128,7 @@ class MACDStrategy(bt.Strategy):
     def next(self):        
         global a_position_closed, a_last_position, a_wait_for_order_completion, a_signal, a_SL_or_TP_hit, a_total_closed_positions, a_log_trade
         # Update `barssince` counters
+        print(f'==================NextCalled==================')
         if self.rsi[0] <= self.params.rsi_oversold:
             self.bars_since_oversold = 0  # Reset counter
         elif self.bars_since_oversold is not None:
@@ -260,15 +261,16 @@ if __name__ == '__main__':  # Entry point when running this script
     # data = store.getdata(timeframe=bt.TimeFrame.Minutes, compression=5, dataname=symbol, start_date=from_date, LiveBars=False)
 
     # 2. Historical 1-minute bars for the last hour + new live bars / timeframe M1
-    from_date = dt.datetime.utcnow() - dt.timedelta(minutes=300)  # we take data for the last 1 hour
-    data = store.getdata(timeframe=bt.TimeFrame.Minutes, compression=3, dataname=symbol, start_date=from_date, LiveBars=True)
+    from_date = dt.datetime.now(dt.UTC) - dt.timedelta(minutes=60)  # we take data for the last 1 hour
+    data = store.getdata(timeframe=bt.TimeFrame.Minutes, compression=1, dataname=symbol, start_date=from_date, LiveBars=True)
 
     # # 3. Historical 1-hour bars for the week + Chart because offline / timeframe H1
     # from_date = dt.datetime.utcnow() - dt.timedelta(hours=24*7)  # we take data for the last week from the current time
     # data = store.getdata(timeframe=bt.TimeFrame.Minutes, compression=60, dataname=symbol, start_date=from_date, LiveBars=False)
 
     cerebro.adddata(data)  # Adding data
+    print(len(data))
     cerebro.addstrategy(MACDStrategy, coin_target=coin_target)  # Adding a trading system
 
     cerebro.run()  # Launching a trading system
-    cerebro.plot()  # Draw a chart
+    # cerebro.plot()  # Draw a chart
