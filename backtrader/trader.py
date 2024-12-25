@@ -1,10 +1,12 @@
 import backtrader as bt
 import datetime
+from models.Position import Position
 
-total_closed_positions = 0
+a_total_closed_positions = 0
 a_calculated_profit = 0
-a_max_trades = 999
+a_max_trades = 99
 a_position_closed = True
+a_last_position = Position()
 
 class MACDStrategy(bt.Strategy):
     params = (
@@ -29,26 +31,63 @@ class MACDStrategy(bt.Strategy):
     
 
     def log(self, txt):
-        global a_calculated_profit, a_max_trades, a_position_closed
+        # print("===log called=== ", txt)
+        global a_total_closed_positions, a_calculated_profit, a_max_trades, a_position_closed, a_last_position
 
         dt = self.datas[0].datetime.datetime(0)
         
         if txt == 'OPEN':
             print("===============OPEN===================")
             a_position_closed = False
+            a_last_position.size = self.position.size
+            a_last_position.price = self.position.price
+            a_last_position.time = dt
+            # print(f'{a_last_position.size}, {a_last_position.price}')
 
-        print(f'{dt}, {"LONG" if self.position.size > 0 else "SHORT"}, {self.data.close[0]}, {self.position.size}')
+        print(f'{dt}, {"LONG" if a_last_position.size > 0 else "SHORT"}, {self.data.close[0]}, {a_last_position.size}')
         if(txt == 'CLOSE'):
-            print("Verifying Profit: ", self.position.size * (self.data.close[0] - self.position.price))
-            print(f"{self.position.size} * ({self.data.close[0]} - {self.position.price})")
-            a_calculated_profit += self.position.size * (self.data.close[0] - self.position.price)
-            print(f"{a_calculated_profit}")
+            # print("Verifying Profit: ", a_last_position.size * (self.data.close[0] - a_last_position.price))
+            # print(f"{a_last_position.size} * ({self.data.close[0]} - {a_last_position.price})")
+            a_calculated_profit += a_last_position.size * (self.data.close[0] - a_last_position.price)
+            # print(f"{a_calculated_profit}")
             a_position_closed = True
+            a_last_position.size = 0
+            a_last_position.price = 0
             print("================CLOSED==================")
-            if(total_closed_positions >= a_max_trades ):
+            if(a_total_closed_positions >= a_max_trades ):
+                self.print_results()
                 exit()
             
-    
+    def notify_order(self, order):
+        global a_position_closed, a_last_position
+        # print(f'========Notify_order')
+        # print(f'========Status {order.status}')
+        # print(f'========Status {order.Status}')
+        if order.status in [order.Completed]:
+            if order.isbuy():
+                if a_position_closed:
+                    self.log("OPEN")
+                else:
+                    self.log("CLOSE")
+                    if a_last_position.size > 0:
+                        self.sell(size=(cerebro.broker.getcash() / self.data.close[0]))
+                    else:
+                        self.buy(size=(cerebro.broker.getcash() / self.data.close[0]))
+            elif order.issell():
+                if a_position_closed:
+                    self.log("OPEN")
+                else:
+                    self.log("CLOSE")
+                    if a_last_position.size > 0:
+                        self.sell(size=(cerebro.broker.getcash() / self.data.close[0]))
+                    else:
+                        self.buy(size=(cerebro.broker.getcash() / self.data.close[0]))
+        # elif order.status in [order.Canceled, order.Margin, order.Rejected]:
+            # self.log(f"Order {order.info['name']} was not completed: {order.Status[order.status]}")
+            
+    def notify_trade(self, trade):
+        print(f'')
+        
     def __init__(self):
         # Indicators
         self.rsi = bt.indicators.RSI_Safe(self.data.close, period=self.params.rsi_period)
@@ -66,7 +105,7 @@ class MACDStrategy(bt.Strategy):
         self.bars_since_overbought = None
 
     def next(self):        
-        global a_position_closed
+        global a_position_closed, a_last_position
         # Update `barssince` counters
         if self.rsi[0] <= self.params.rsi_oversold:
             self.bars_since_oversold = 0  # Reset counter
@@ -90,73 +129,89 @@ class MACDStrategy(bt.Strategy):
         
         # Long Strategy
         if self.buy_signal and self.params.enable_long_strategy:
+            print("buy signal")
             self.close_short()
-            if a_position_closed:
-                self.log("OPEN")
+            if a_position_closed and a_last_position.time != self.data.datetime.datetime(0):
+                print(f'open {cerebro.broker.getcash()} / {self.data.close[0]}')
                 self.buy(size=cerebro.broker.getcash() / self.data.close[0])
-            else:
-                self.set_stop_loss_take_profit('long')
+                # self.log("OPEN")
 
 
         # Short Strategy
         if self.sell_signal and self.params.enable_short_strategy:
+            print("sell signal")
             self.close_long()
-            if a_position_closed:
-                self.log("OPEN")
-                self.sell(size=cerebro.broker.getcash() / self.data.close[0])
-            else:
-                self.set_stop_loss_take_profit('short')
-    
+            
+            if a_position_closed and a_last_position.time != self.data.datetime.datetime(0):                
+                print(f'close {cerebro.broker.getcash()} / {self.data.close[0]}, {a_last_position.time} {self.datas[0].datetime.datetime(0)}')
+                self.sell(size=(cerebro.broker.getcash() / self.data.close[0]))
+                # self.log("OPEN")
+        if not a_position_closed:
+            self.set_stop_loss_take_profit()
 
-    def set_stop_loss_take_profit(self, position_type):
-        global a_position_closed
-        if a_position_closed:
-            return
+    def set_stop_loss_take_profit(self):
+        global a_position_closed, a_last_position
+        stop_loss = None
+        take_profit = None
+        
+        position_type = 'long' if a_last_position.size > 0 else 'short'
         
         if position_type == 'long':
-            stop_loss = self.position.price * (1 - self.params.long_stoploss / 100)# 110 * (1 - 0.05 / 100)
-            take_profit = self.position.price * (1 + self.params.long_takeprofit / 100)
+            stop_loss = a_last_position.price * (1 - self.params.long_stoploss / 100)# 110 * (1 - 0.05 / 100)
+            take_profit = a_last_position.price * (1 + self.params.long_takeprofit / 100)
         elif position_type == 'short':
-            stop_loss = self.position.price * (1 + self.params.short_stoploss / 100)
-            take_profit = self.position.price * (1 - self.params.short_takeprofit / 100)
+            stop_loss = a_last_position.price * (1 + self.params.short_stoploss / 100)
+            take_profit = a_last_position.price * (1 - self.params.short_takeprofit / 100)
+
+        # print(f'SL {stop_loss}, TP {take_profit}')
 
         # self.sell(exectype=bt.Order.Stop, price=stop_loss)
         # self.sell(exectype=bt.Order.Limit, price=take_profit)
         if position_type == 'long' and self.data.close[0] < stop_loss:
             self.close()
-            self.log("CLOSE")
-        elif position_type == 'short' and self.data.close[0] > stop_loss:
+            print(f'===============================================================Long hit SL')
+            # self.log("CLOSE")
+        if position_type == 'short' and self.data.close[0] > stop_loss:
             self.close()
-            self.log("CLOSE")
-
+            print(f'===============================================================Short hit SL')
+            # self.log("CLOSE")
+        # print(f'Now {self.data.close[0]}')
         if position_type == 'long' and self.data.close[0] > take_profit:
             self.close()
-            self.log("CLOSE")
-        elif position_type == 'short' and self.data.close[0] < take_profit:
+            print(f'===============================================================Long hit TP')
+            # self.log("CLOSE")
+        if position_type == 'short' and self.data.close[0] < take_profit:
             self.close()
-            self.log("CLOSE")
+            print(f'===============================================================Short hit TP')
+            # self.log("CLOSE")
 
     def close_long(self):
         if self.position.size > 0:
-            self.log("CLOSE")
-            global total_closed_positions
-            total_closed_positions += 1
+            global a_total_closed_positions
+            a_total_closed_positions += 1
             self.close()
+            # self.log("CLOSE")
 
     def close_short(self):
         if self.position.size < 0:
-            self.log("CLOSE")
-            global total_closed_positions
-            total_closed_positions += 1
+            global a_total_closed_positions
+            a_total_closed_positions += 1
             self.close()
+            # self.log("CLOSE")
 
+    def print_results(self):
+        global a_total_closed_positions, a_calculated_profit
+        print(f"Total Closed Positions: {a_total_closed_positions}")
+        print(f"Total Calculated Profit: {a_calculated_profit}")
+        print(f"Final Portfolio Value: {cerebro.broker.getvalue()}")
 # Data preparation
 cerebro = bt.Cerebro()
 data = bt.feeds.GenericCSVData(
-    dataname='./backtrader/BTCUSDT.csv',  # Replace with your data file path
+    dataname='./backtrader/BTCUSDT-3min-3mon.csv',  # Replace with your data file path
     dtformat='%m-%d-%YT%H:%M:%S.000Z',  # New format to match '2024-12-01T00:00:00.000Z'
     timeframe=bt.TimeFrame.Minutes,
-    fromdate=datetime.datetime(2024, 12, 22),
+    fromdate=datetime.datetime(2024, 12, 21),
+    todate=datetime.datetime(2024, 12, 31),
     compression=1,
     openinterest=-1,
 )
@@ -171,7 +226,7 @@ cerebro.broker.setcommission(commission=0.0)
 print(f'Starting Portfolio Value: {cerebro.broker.getvalue()}')
 cerebro.run()
 print(f'Ending Portfolio Value: {cerebro.broker.getvalue()}')
-print(f'Total Closed Positions: {total_closed_positions}')
+print(f'Total Closed Positions: {a_total_closed_positions}')
 print(f'Total Calculated Profit: {a_calculated_profit}')
 
 # Visualization
