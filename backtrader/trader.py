@@ -2,6 +2,8 @@ import backtrader as bt
 import datetime
 from models.Position import Position
 
+
+a_log_trade = -1
 a_total_closed_positions = 0
 a_calculated_profit = 0
 a_max_trades = 9999
@@ -40,14 +42,15 @@ class MACDStrategy(bt.Strategy):
         dt = self.datas[0].datetime.datetime(0)
         
         if txt == 'OPEN':
-            print("===============OPEN===================")
+            print(f"{a_total_closed_positions+1}===============OPEN===================")
             a_position_closed = False
             a_last_position.size = self.position.size
             a_last_position.price = self.position.price
             a_last_position.time = dt
             # print(f'{a_last_position.size}, {a_last_position.price}')
 
-        print(f'{dt}, {"LONG" if a_last_position.size > 0 else "SHORT"}, {self.data.close[0]}, {a_last_position.size}')
+        # print(f'{dt}, {"LONG" if a_last_position.size > 0 else "SHORT"}, {self.data.close[0]}, {a_last_position.size}')
+        print(f'{dt} | {"LONG" if a_last_position.size > 0 else "SHORT"} | {self.data.close[0]}')
         if(txt == 'CLOSE'):
             # print("Verifying Profit: ", a_last_position.size * (self.data.close[0] - a_last_position.price))
             # print(f"{a_last_position.size} * ({self.data.close[0]} - {a_last_position.price})")
@@ -56,7 +59,7 @@ class MACDStrategy(bt.Strategy):
             a_position_closed = True
             a_last_position.size = 0
             a_last_position.price = 0
-            print("================CLOSED==================")
+            print("================CLOSED==================\n")
             if(a_total_closed_positions >= a_max_trades ):
                 self.print_results()
                 exit()
@@ -77,7 +80,7 @@ class MACDStrategy(bt.Strategy):
                     if not a_SL_or_TP_hit:
                         a_wait_for_order_completion = True
                         if a_signal == "buy":
-                            print(f'open {cerebro.broker.getcash()} / {self.data.close[0]}')
+                            # print(f'open {cerebro.broker.getcash()} / {self.data.close[0]}')
                             self.buy(size = (cerebro.broker.getvalue() - 1) / self.data.close[0])
                         elif a_signal == "sell":
                             self.sell(size = (cerebro.broker.getvalue() - 1)/ self.data.close[0])
@@ -96,8 +99,8 @@ class MACDStrategy(bt.Strategy):
         elif order.status in [order.Canceled, order.Margin, order.Rejected]:
             self.log(f"Order {order.info['name']} was not completed: {order.Status[order.status]}")
             
-    def notify_trade(self, trade):
-        print(f'')
+    # def notify_trade(self, trade):
+    #     print(f'')
         
     def __init__(self):
         # Indicators
@@ -116,7 +119,7 @@ class MACDStrategy(bt.Strategy):
         self.bars_since_overbought = None
 
     def next(self):        
-        global a_position_closed, a_last_position, a_wait_for_order_completion, a_signal, a_SL_or_TP_hit
+        global a_position_closed, a_last_position, a_wait_for_order_completion, a_signal, a_SL_or_TP_hit, a_total_closed_positions, a_log_trade
         # Update `barssince` counters
         if self.rsi[0] <= self.params.rsi_oversold:
             self.bars_since_oversold = 0  # Reset counter
@@ -140,25 +143,25 @@ class MACDStrategy(bt.Strategy):
         
         # Long Strategy
         if self.buy_signal and self.params.enable_long_strategy:
-            # print("buy signal")
+            print("buy signal") if a_log_trade-1 == a_total_closed_positions else None
             a_signal = "buy"
             a_SL_or_TP_hit = False
             
             self.close_short()
             if a_position_closed and not a_wait_for_order_completion:
-                print(f'open {cerebro.broker.getcash()} / {self.data.close[0]}')
+                # print(f'open {cerebro.broker.getcash()} / {self.data.close[0]}')
                 self.buy(size=cerebro.broker.getcash() / self.data.close[0])
                 # self.log("OPEN")
 
 
         # Short Strategy
         if self.sell_signal and self.params.enable_short_strategy:
-            # print("sell signal")
+            print("sell signal") if a_log_trade-1 == a_total_closed_positions else None
             a_signal = "sell"
             a_SL_or_TP_hit = False
             self.close_long()
             if a_position_closed and not a_wait_for_order_completion:                
-                print(f'close {cerebro.broker.getcash()} / {self.data.close[0]}')
+                # print(f'close {cerebro.broker.getcash()} / {self.data.close[0]}')
                 self.sell(size=(cerebro.broker.getcash() / self.data.close[0]))
                 # self.log("OPEN")
         if not a_position_closed:
@@ -248,7 +251,7 @@ cerebro.adddata(data)
 cerebro.addstrategy(MACDStrategy)
 
 # Run
-cerebro.broker.setcash(200.0)
+cerebro.broker.setcash(1000)
 cerebro.broker.setcommission(commission=0.0)
 print(f'Starting Portfolio Value: {cerebro.broker.getvalue()}')
 cerebro.run()
