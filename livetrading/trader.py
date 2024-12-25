@@ -1,6 +1,10 @@
 import backtrader as bt
 from backtrader_binance import BinanceStore
 from models.Position import Position
+import ccxt
+import os
+from dotenv import load_dotenv
+load_dotenv()
 
 import asyncio
 asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
@@ -234,8 +238,8 @@ class MACDStrategy(bt.Strategy):
 cerebro = bt.Cerebro()
 # Configure BinanceStore with API keys
 binance_store = BinanceStore(
-    api_key='',
-    api_secret='',
+    api_key=os.getenv('API_KEY'),
+    api_secret=os.getenv('API_SECRET'),
     testnet=False,  # Set to False for live trading
     coin_target='USDT'
 )
@@ -245,18 +249,18 @@ data = binance_store.getdata(
     dataname='BTCUSDT',  # Pair
     timeframe=bt.TimeFrame.Minutes,
     compression=1,  # 1-minute intervals
-    ohlcv_limit=500,  # Number of candles to fetch
+    ohlcv_limit=100,  # Number of candles to fetch
     live=True
 )
-
-cerebro.adddata(data)
-
-# Add strategy
+print(len(data))
+for i in range(len(data)):
+    print(f"Date: {i}")
+broker = binance_store.getbroker()
+cerebro = bt.Cerebro()
 cerebro.addstrategy(MACDStrategy)
+cerebro.adddata(data)
+cerebro.setbroker(broker)
 
-# Run
-cerebro.broker.setcash(1000)
-cerebro.broker.setcommission(commission=0.0)
 print(f'Starting Portfolio Value: {cerebro.broker.getvalue()}')
 cerebro.run()
 print(f'Ending Portfolio Value: {cerebro.broker.getvalue()}')
@@ -264,4 +268,4 @@ print(f'Total Closed Positions: {a_total_closed_positions}')
 print(f'Total Calculated Profit: {a_calculated_profit}')
 
 # Visualization
-cerebro.plot()
+# cerebro.plot()

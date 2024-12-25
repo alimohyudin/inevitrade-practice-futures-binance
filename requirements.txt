@@ -3,3 +3,7 @@ matplotlib
 pandas
 mplfinance
 backtrader
+python-dotenv
+winloop
+ccxt
+backtrader-binance
