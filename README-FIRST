@@ -1,0 +1,1 @@
+whenever SL or TP hits, it creates another order, make it wait for next signal then create order

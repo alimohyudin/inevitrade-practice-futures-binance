@@ -8,7 +8,6 @@ a_max_trades = 99
 a_position_closed = True
 a_last_position = Position()
 a_signal = ""
-a_wait_for_order_completion = False
 
 class MACDStrategy(bt.Strategy):
     params = (
@@ -34,7 +33,7 @@ class MACDStrategy(bt.Strategy):
 
     def log(self, txt):
         # print("===log called=== ", txt)
-        global a_total_closed_positions, a_calculated_profit, a_max_trades, a_position_closed, a_last_position
+        global a_total_closed_positions, a_calculated_profit, a_max_trades, a_position_closed, a_last_position, a_signal
 
         dt = self.datas[0].datetime.datetime(0)
         
@@ -44,52 +43,40 @@ class MACDStrategy(bt.Strategy):
             a_last_position.size = self.position.size
             a_last_position.price = self.position.price
             a_last_position.time = dt
-            # print(f'{a_last_position.size}, {a_last_position.price}')
 
         print(f'{dt}, {"LONG" if a_last_position.size > 0 else "SHORT"}, {self.data.close[0]}, {a_last_position.size}')
         if(txt == 'CLOSE'):
-            # print("Verifying Profit: ", a_last_position.size * (self.data.close[0] - a_last_position.price))
-            # print(f"{a_last_position.size} * ({self.data.close[0]} - {a_last_position.price})")
             a_calculated_profit += a_last_position.size * (self.data.close[0] - a_last_position.price)
-            # print(f"{a_calculated_profit}")
             a_position_closed = True
             a_last_position.size = 0
             a_last_position.price = 0
-            print("================CLOSED==================")
+            print(f"================CLOSED: {a_signal}==================")
             if(a_total_closed_positions >= a_max_trades ):
                 self.print_results()
                 exit()
             
     def notify_order(self, order):
-        global a_position_closed, a_last_position, a_wait_for_order_completion
-        # print(f'========Notify_order')
-        # print(f'========Status {order}')
-        # print(f'========Status {order.Status} {[order.Rejected]}')
+        global a_position_closed, a_last_position, a_signal
         if order.status in [order.Completed]:
-            a_wait_for_order_completion = False
             if order.isbuy():
                 if a_position_closed:
                     self.log("OPEN")
                 else:
                     self.log("CLOSE")
-                    a_wait_for_order_completion = True
                     if a_signal == "buy":
-                        print(f'open {cerebro.broker.getcash()} / {self.data.close[0]}')
-                        self.buy(size = (cerebro.broker.getvalue() - 10) / self.data.close[0])
+                        self.buy(size = cerebro.broker.getvalue() / self.data.close[0])
                     elif a_signal == "sell":
-                        self.sell(size = (cerebro.broker.getvalue() - 10)/ self.data.close[0])
+                        self.sell(size = cerebro.broker.getvalue() / self.data.close[0])
+                        
             elif order.issell():
                 if a_position_closed:
                     self.log("OPEN")
                 else:
                     self.log("CLOSE")
-                    a_wait_for_order_completion = True
                     if a_signal == "buy":
-                        self.buy(size = (cerebro.broker.getvalue() - 10) / self.data.close[0])
+                        self.buy(size = cerebro.broker.getvalue() / self.data.close[0])
                     elif a_signal == "sell":
-                        self.sell(size = (cerebro.broker.getvalue() - 10) / self.data.close[0])
-        elif order.status in [order.Canceled, order.Margin, order.Rejected]:
-            self.log(f"Order {order.info['name']} was not completed: {order.Status[order.status]}")
+                        self.sell(size = cerebro.broker.getvalue() / self.data.close[0])
             
     def notify_trade(self, trade):
         print(f'')
@@ -111,7 +98,7 @@ class MACDStrategy(bt.Strategy):
         self.bars_since_overbought = None
 
     def next(self):        
-        global a_position_closed, a_last_position, a_wait_for_order_completion, a_signal
+        global a_position_closed, a_last_position, a_signal
         # Update `barssince` counters
         if self.rsi[0] <= self.params.rsi_oversold:
             self.bars_since_oversold = 0  # Reset counter
@@ -135,10 +122,10 @@ class MACDStrategy(bt.Strategy):
         
         # Long Strategy
         if self.buy_signal and self.params.enable_long_strategy:
-            # print("buy signal")
+            print("buy signal")
             a_signal = "buy"
             self.close_short()
-            if a_position_closed and not a_wait_for_order_completion:
+            if a_position_closed:
                 print(f'open {cerebro.broker.getcash()} / {self.data.close[0]}')
                 self.buy(size=cerebro.broker.getcash() / self.data.close[0])
                 # self.log("OPEN")
@@ -146,11 +133,11 @@ class MACDStrategy(bt.Strategy):
 
         # Short Strategy
         if self.sell_signal and self.params.enable_short_strategy:
-            # print("sell signal")
+            print("sell signal")
             a_signal = "sell"
             self.close_long()
             
-            if a_position_closed and not a_wait_for_order_completion:                
+            if a_position_closed:                
                 print(f'close {cerebro.broker.getcash()} / {self.data.close[0]}')
                 self.sell(size=(cerebro.broker.getcash() / self.data.close[0]))
                 # self.log("OPEN")
@@ -212,14 +199,6 @@ class MACDStrategy(bt.Strategy):
         print(f"Total Closed Positions: {a_total_closed_positions}")
         print(f"Total Calculated Profit: {a_calculated_profit}")
         print(f"Final Portfolio Value: {cerebro.broker.getvalue()}")
-
-
-
-
-
-
-
-
 # Data preparation
 cerebro = bt.Cerebro()
 data = bt.feeds.GenericCSVData(
@@ -246,4 +225,4 @@ print(f'Total Closed Positions: {a_total_closed_positions}')
 print(f'Total Calculated Profit: {a_calculated_profit}')
 
 # Visualization
-cerebro.plot()
+# cerebro.plot()
