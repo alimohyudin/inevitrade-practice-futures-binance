@@ -1,10 +1,9 @@
 import backtrader as bt
 from backtrader_binance import BinanceStore
 from models.Position import Position
-import ccxt
-import os
-from dotenv import load_dotenv
-load_dotenv()
+import datetime as dt
+from ConfigBinance.Config import Config  # Configuration file
+
 
 import asyncio
 asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
@@ -22,6 +21,7 @@ a_SL_or_TP_hit = False
 
 class MACDStrategy(bt.Strategy):
     params = (
+        ('coin_target', 'USDT'),
         ('enable_long_strategy', True),
         ('long_stoploss', 5),#percent
         ('long_takeprofit', 2),
@@ -235,37 +235,40 @@ class MACDStrategy(bt.Strategy):
         print(f"Final Portfolio Value: {cerebro.broker.getvalue()}")
 
 
-cerebro = bt.Cerebro()
-# Configure BinanceStore with API keys
-binance_store = BinanceStore(
-    api_key=os.getenv('API_KEY'),
-    api_secret=os.getenv('API_SECRET'),
-    testnet=False,  # Set to False for live trading
-    coin_target='USDT'
-)
 
-# Create a data feed for a specific symbol
-data = binance_store.getdata(
-    dataname='BTCUSDT',  # Pair
-    timeframe=bt.TimeFrame.Minutes,
-    compression=1,  # 1-minute intervals
-    ohlcv_limit=100,  # Number of candles to fetch
-    live=True
-)
-print(len(data))
-for i in range(len(data)):
-    print(f"Date: {i}")
-broker = binance_store.getbroker()
-cerebro = bt.Cerebro()
-cerebro.addstrategy(MACDStrategy)
-cerebro.adddata(data)
-cerebro.setbroker(broker)
 
-print(f'Starting Portfolio Value: {cerebro.broker.getvalue()}')
-cerebro.run()
-print(f'Ending Portfolio Value: {cerebro.broker.getvalue()}')
-print(f'Total Closed Positions: {a_total_closed_positions}')
-print(f'Total Calculated Profit: {a_calculated_profit}')
 
-# Visualization
-# cerebro.plot()
+# Historical/new bars of ticker
+if __name__ == '__main__':  # Entry point when running this script
+    cerebro = bt.Cerebro(quicknotify=True)
+
+    coin_target = 'USDT'  # the base ticker in which calculations will be performed
+    symbol = 'BTC' + coin_target  # the ticker by which we will receive data in the format <CodeTickerBaseTicker>
+
+    store = BinanceStore(
+        api_key=Config.BINANCE_API_KEY,
+        api_secret=Config.BINANCE_API_SECRET,
+        coin_target=coin_target,
+        testnet=False,
+        # tld="us",  # for US customers => to use the 'Binance.us' url
+    )  # Binance Storage
+    broker = store.getbroker()
+    cerebro.setbroker(broker)
+
+    # # 1. Historical 5-minute bars for the last 10 hours + Chart because offline/ timeframe M5
+    # from_date = dt.datetime.utcnow() - dt.timedelta(minutes=10*60)  # we take data for the last 10 hours
+    # data = store.getdata(timeframe=bt.TimeFrame.Minutes, compression=5, dataname=symbol, start_date=from_date, LiveBars=False)
+
+    # 2. Historical 1-minute bars for the last hour + new live bars / timeframe M1
+    from_date = dt.datetime.utcnow() - dt.timedelta(minutes=300)  # we take data for the last 1 hour
+    data = store.getdata(timeframe=bt.TimeFrame.Minutes, compression=3, dataname=symbol, start_date=from_date, LiveBars=True)
+
+    # # 3. Historical 1-hour bars for the week + Chart because offline / timeframe H1
+    # from_date = dt.datetime.utcnow() - dt.timedelta(hours=24*7)  # we take data for the last week from the current time
+    # data = store.getdata(timeframe=bt.TimeFrame.Minutes, compression=60, dataname=symbol, start_date=from_date, LiveBars=False)
+
+    cerebro.adddata(data)  # Adding data
+    cerebro.addstrategy(MACDStrategy, coin_target=coin_target)  # Adding a trading system
+
+    cerebro.run()  # Launching a trading system
+    cerebro.plot()  # Draw a chart

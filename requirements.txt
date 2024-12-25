@@ -6,4 +6,4 @@ backtrader
 python-dotenv
 winloop
 ccxt
-backtrader-binance
+backtrader_binance
