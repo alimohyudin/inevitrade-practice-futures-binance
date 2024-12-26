@@ -42,7 +42,7 @@ class MACDStrategy(bt.Strategy):
         dt = self.datas[0].datetime.datetime(0)
         
         if txt == 'OPEN':
-            print(f"{a_total_closed_positions+1}===============OPEN===================")
+            # print(f"{a_total_closed_positions+1}===============OPEN===================")
             a_position_closed = False
             a_last_position.size = self.position.size
             a_last_position.price = self.position.price
@@ -50,7 +50,7 @@ class MACDStrategy(bt.Strategy):
             # print(f'{a_last_position.size}, {a_last_position.price}')
 
         # print(f'{dt}, {"LONG" if a_last_position.size > 0 else "SHORT"}, {self.data.close[0]}, {a_last_position.size}')
-        print(f'{dt} | {"LONG" if a_last_position.size > 0 else "SHORT"} | {self.data.close[0]}')
+        # print(f'{dt} | {"LONG" if a_last_position.size > 0 else "SHORT"} | {self.data.close[0]}')
         if(txt == 'CLOSE'):
             # print("Verifying Profit: ", a_last_position.size * (self.data.close[0] - a_last_position.price))
             # print(f"{a_last_position.size} * ({self.data.close[0]} - {a_last_position.price})")
@@ -59,7 +59,7 @@ class MACDStrategy(bt.Strategy):
             a_position_closed = True
             a_last_position.size = 0
             a_last_position.price = 0
-            print("================CLOSED==================\n")
+            # print("================CLOSED==================\n")
             if(a_total_closed_positions >= a_max_trades ):
                 self.print_results()
                 exit()
@@ -187,23 +187,23 @@ class MACDStrategy(bt.Strategy):
         # self.sell(exectype=bt.Order.Limit, price=take_profit)
         if position_type == 'long' and self.data.close[0] < stop_loss:
             self.close()
-            print(f'===============================================================Long hit SL')
+            # print(f'===============================================================Long hit SL')
             a_SL_or_TP_hit = True
             # self.log("CLOSE")
         if position_type == 'short' and self.data.close[0] > stop_loss:
             self.close()
-            print(f'===============================================================Short hit SL')
+            # print(f'===============================================================Short hit SL')
             a_SL_or_TP_hit = True
             # self.log("CLOSE")
         # print(f'Now {self.data.close[0]}')
         if position_type == 'long' and self.data.close[0] > take_profit:
             self.close()
-            print(f'===============================================================Long hit TP')
+            # print(f'===============================================================Long hit TP')
             a_SL_or_TP_hit = True
             # self.log("CLOSE")
         if position_type == 'short' and self.data.close[0] < take_profit:
             self.close()
-            print(f'===============================================================Short hit TP')
+            # print(f'===============================================================Short hit TP')
             a_SL_or_TP_hit = True
             # self.log("CLOSE")
 
@@ -240,7 +240,7 @@ data = bt.feeds.GenericCSVData(
     dataname='./backtrader/BTCUSDT-3min-3mon.csv',  # Replace with your data file path
     dtformat='%m-%d-%YT%H:%M:%S.000Z',  # New format to match '2024-12-01T00:00:00.000Z'
     timeframe=bt.TimeFrame.Minutes,
-    fromdate=datetime.datetime(2024, 12, 9),
+    fromdate=datetime.datetime(2024, 10, 1),
     todate=datetime.datetime(2024, 12, 31),
     compression=1,
     openinterest=-1,
