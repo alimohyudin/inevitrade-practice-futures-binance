@@ -242,9 +242,10 @@ data = bt.feeds.GenericCSVData(
     timeframe=bt.TimeFrame.Minutes,
     fromdate=datetime.datetime(2024, 12, 9),
     todate=datetime.datetime(2024, 12, 31),
-    # compression=0,
-    # openinterest=-1,
+    compression=1,
+    openinterest=-1,
 )
+print(len(data))
 cerebro.adddata(data)
 
 # Add strategy

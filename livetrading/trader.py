@@ -9,7 +9,7 @@ import asyncio
 asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 
-a_log_trade = -1
+a_log_trade = 1
 a_total_closed_positions = 0
 a_calculated_profit = 0
 a_max_trades = 9999
@@ -73,7 +73,7 @@ class MACDStrategy(bt.Strategy):
             
     def notify_order(self, order):
         global a_position_closed, a_last_position, a_wait_for_order_completion
-        # print(f'========Notify_order')
+        print(f'========Notify_order')
         # print(f'========Status {order}')
         # print(f'========Status {order.Status} {[order.Rejected]}')
         if order.status in [order.Completed]:
@@ -106,10 +106,11 @@ class MACDStrategy(bt.Strategy):
         elif order.status in [order.Canceled, order.Margin, order.Rejected]:
             self.log(f"Order {order.info['name']} was not completed: {order.Status[order.status]}")
             
-    # def notify_trade(self, trade):
-    #     print(f'')
+    def notify_trade(self, trade):
+        print(f'notify_trade {trade}')
         
     def __init__(self):
+        print("===init called===")
         # Indicators
         self.rsi = bt.indicators.RSI_Safe(self.data.close, period=self.params.rsi_period)
         self.macd = bt.indicators.MACD(
@@ -124,11 +125,11 @@ class MACDStrategy(bt.Strategy):
          # Custom counters for `barssince`
         self.bars_since_oversold = None
         self.bars_since_overbought = None
-
+        print("===init end===")
     def next(self):        
         global a_position_closed, a_last_position, a_wait_for_order_completion, a_signal, a_SL_or_TP_hit, a_total_closed_positions, a_log_trade
         # Update `barssince` counters
-        print(f'==================NextCalled==================')
+        # print(f'==================NextCalled==================')
         if self.rsi[0] <= self.params.rsi_oversold:
             self.bars_since_oversold = 0  # Reset counter
         elif self.bars_since_oversold is not None:
@@ -261,16 +262,18 @@ if __name__ == '__main__':  # Entry point when running this script
     # data = store.getdata(timeframe=bt.TimeFrame.Minutes, compression=5, dataname=symbol, start_date=from_date, LiveBars=False)
 
     # 2. Historical 1-minute bars for the last hour + new live bars / timeframe M1
-    from_date = dt.datetime.now(dt.UTC) - dt.timedelta(minutes=60)  # we take data for the last 1 hour
-    data = store.getdata(timeframe=bt.TimeFrame.Minutes, compression=1, dataname=symbol, start_date=from_date, LiveBars=True)
+    from_date = dt.datetime.now(dt.UTC) - dt.timedelta(hours=1)  # we take data for the last 1 hour
+    data = store.getdata(timeframe=bt.TimeFrame.Minutes, compression=3, dataname=symbol, start_date=from_date, LiveBars=True)
 
     # # 3. Historical 1-hour bars for the week + Chart because offline / timeframe H1
     # from_date = dt.datetime.utcnow() - dt.timedelta(hours=24*7)  # we take data for the last week from the current time
     # data = store.getdata(timeframe=bt.TimeFrame.Minutes, compression=60, dataname=symbol, start_date=from_date, LiveBars=False)
 
+    print(f"{cerebro.broker.getvalue()}")
+
     cerebro.adddata(data)  # Adding data
-    print(len(data))
-    cerebro.addstrategy(MACDStrategy, coin_target=coin_target)  # Adding a trading system
+    
+    cerebro.addstrategy(MACDStrategy)  # Adding a trading system
 
     cerebro.run()  # Launching a trading system
-    # cerebro.plot()  # Draw a chart
+    cerebro.plot()  # Draw a chart
