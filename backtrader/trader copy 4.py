@@ -1,8 +1,6 @@
 import backtrader as bt
 import datetime
 from strategy.MACDStrategy import MACDStrategy
-import concurrent.futures
-import itertools
 
 def run_strategy(params):
     cerebro = bt.Cerebro()
@@ -27,33 +25,33 @@ def run_strategy(params):
     ending_cash = cerebro.broker.getvalue()
 
     profit = ending_cash - starting_cash
-    return profit, params
-
-def generate_params_grid():
-    long_stoploss = [5]
-    long_takeprofit = [2,3,4]
-    short_stoploss = [2,3]
-    short_takeprofit = [2,3,4]
-    lookback_bars = [54, 55, 56]
-    #660$ for 5, 2, 2, 2, 55
-    #745$ for 5, 3, 2, 3, 55
-    param_grid = list(itertools.product(long_stoploss, long_takeprofit, short_stoploss, short_takeprofit, lookback_bars))
-    return [{'long_stoploss': p[0], 'long_takeprofit': p[1], 'short_stoploss': p[2], 'short_takeprofit': p[3], 'lookback_bars': p[4]} for p in param_grid]
+    return profit
 
 def test_macd_strategy():
-    test_params = generate_params_grid()
+    test_params = [
+        {'lookback_bars': 10},
+        {'lookback_bars': 15},
+        {'lookback_bars': 20},
+        {'lookback_bars': 25},
+        {'lookback_bars': 30},
+        {'lookback_bars': 35},
+        {'lookback_bars': 40},
+        {'lookback_bars': 45},
+        {'lookback_bars': 50},
+        {'lookback_bars': 55},
+        {'lookback_bars': 60}
+        # Add more parameter sets as needed
+    ]
 
     best_profit = float('-inf')
     best_params = None
 
-    with concurrent.futures.ThreadPoolExecutor() as executor:
-        futures = [executor.submit(run_strategy, params) for params in test_params]
-        for future in concurrent.futures.as_completed(futures):
-            profit, params = future.result()
-            print(f"Params: {params}, Profit: {profit}")
-            if profit > best_profit:
-                best_profit = profit
-                best_params = params
+    for params in test_params:
+        profit = run_strategy(params)
+        print(f"Params: {params}, Profit: {profit}")
+        if profit > best_profit:
+            best_profit = profit
+            best_params = params
 
     print(f"Best Params: {best_params}, Best Profit: {best_profit}")
 
