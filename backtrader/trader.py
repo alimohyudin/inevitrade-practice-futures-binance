@@ -1,19 +1,34 @@
 import backtrader as bt
-import datetime
+from datetime import datetime, date, timedelta
 from strategy.MACDStrategy import MACDStrategy
 import concurrent.futures
 import itertools
 
+
+def get_last_date_of_month(year, month):
+    # Get the first day of the next month
+    if month == 12:  # Handle December separately
+        next_month = date(year + 1, 1, 1)
+    else:
+        next_month = date(year, month + 1, 1)
+    # Subtract one day from the first day of the next month
+    last_date = next_month - timedelta(days=1)
+    return last_date
+
+
 def run_strategy(params):
     cerebro = bt.Cerebro()
-    cerebro.addstrategy(MACDStrategy, **params)
+    strategy_params = {k: v for k, v in params.items() if k not in ['start_month', 'end_month']}
+    cerebro.addstrategy(MACDStrategy, **strategy_params)
 
     data = bt.feeds.GenericCSVData(
-        dataname='./backtrader/BTCUSDT-3min-3mon.csv',  # Replace with your data file path
+        dataname='./backtrader/data/BTCUSDT-3min-1year-2024.csv',
         dtformat='%m-%d-%YT%H:%M:%S.000Z',  # New format to match '2024-12-01T00:00:00.000Z'
         timeframe=bt.TimeFrame.Minutes,
-        fromdate=datetime.datetime(2024, 10, 1),
-        todate=datetime.datetime(2024, 12, 31),
+        
+        fromdate=datetime(2024, params['start_month'], 1),
+        todate=datetime(2024, params['end_month'], get_last_date_of_month(2024, params['end_month']).day),
+        
         compression=1,
         openinterest=-1,
     )
@@ -30,15 +45,14 @@ def run_strategy(params):
     return profit, params
 
 def generate_params_grid():
+    month_pairs = [(10, 12)]
     long_stoploss = [5]
-    long_takeprofit = [2,3,4]
-    short_stoploss = [2,3]
-    short_takeprofit = [2,3,4]
-    lookback_bars = [54, 55, 56]
-    #660$ for 5, 2, 2, 2, 55
-    #745$ for 5, 3, 2, 3, 55
-    param_grid = list(itertools.product(long_stoploss, long_takeprofit, short_stoploss, short_takeprofit, lookback_bars))
-    return [{'long_stoploss': p[0], 'long_takeprofit': p[1], 'short_stoploss': p[2], 'short_takeprofit': p[3], 'lookback_bars': p[4]} for p in param_grid]
+    long_takeprofit = [3]
+    short_stoploss = [2]
+    short_takeprofit = [3]
+    lookback_bars = [55]
+    param_grid = list(itertools.product(month_pairs, long_stoploss, long_takeprofit, short_stoploss, short_takeprofit, lookback_bars))
+    return [{'start_month': p[0][0], 'end_month': p[0][1], 'long_stoploss': p[1], 'long_takeprofit': p[2], 'short_stoploss': p[3], 'short_takeprofit': p[4], 'lookback_bars': p[5]} for p in param_grid]
 
 def test_macd_strategy():
     test_params = generate_params_grid()

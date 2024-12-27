@@ -7,11 +7,12 @@ def run_strategy(params):
     cerebro.addstrategy(MACDStrategy, **params)
 
     data = bt.feeds.GenericCSVData(
-        dataname='./backtrader/BTCUSDT-3min-3mon.csv',  # Replace with your data file path
+        # dataname='./backtrader/data/BTCUSDT-3min-3mon.csv',
+        dataname='./backtrader/data/BTCUSDT-3min-3mon-jan-mar-2024.csv',
         dtformat='%m-%d-%YT%H:%M:%S.000Z',  # New format to match '2024-12-01T00:00:00.000Z'
         timeframe=bt.TimeFrame.Minutes,
-        fromdate=datetime.datetime(2024, 10, 1),
-        todate=datetime.datetime(2024, 12, 31),
+        fromdate=datetime.datetime(2024, 1, 1),
+        todate=datetime.datetime(2024, 3, 31),
         compression=1,
         openinterest=-1,
     )
@@ -29,9 +30,7 @@ def run_strategy(params):
 
 def test_macd_strategy():
     test_params = [
-        {'long_stoploss': 5, 'long_takeprofit': 2, 'short_stoploss': 4, 'short_takeprofit': 4},
-        {'long_stoploss': 3, 'long_takeprofit': 1, 'short_stoploss': 2, 'short_takeprofit': 2},
-        {'long_stoploss': 6, 'long_takeprofit': 3, 'short_stoploss': 5, 'short_takeprofit': 5},
+        {'long_stoploss': 5, 'long_takeprofit': 2, 'short_stoploss': 4, 'short_takeprofit': 4, 'lookback_bars': 55},
         # Add more parameter sets as needed
     ]
 
