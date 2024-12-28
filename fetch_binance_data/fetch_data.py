@@ -41,7 +41,7 @@ def format_kline_data(kline):
     return [timestamp, open_price, high_price, low_price, close_price, volume]
 
 def fetch_and_append_kline_data(symbol, start_date, end_date, interval=Client.KLINE_INTERVAL_3MINUTE, output_folder='./data'):
-    output_file = os.path.join(output_folder, f'{symbol}.csv')
+    output_file = os.path.join(output_folder, f'{symbol}_{interval}.csv')
     os.makedirs(os.path.dirname(output_file), exist_ok=True)
 
     existing_data = []

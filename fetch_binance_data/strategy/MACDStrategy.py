@@ -24,6 +24,7 @@ class MACDStrategy(bt.Strategy):
         ('start_date', None),
         ('end_date', None),
         ('lookback_bars', 10),
+        ('callback', None),
     )
 
     def __init__(self):
@@ -60,6 +61,12 @@ class MACDStrategy(bt.Strategy):
             self.a_last_position.size = self.position.size
             self.a_last_position.price = self.position.price
             self.a_last_position.time = dt
+            if self.params.callback:
+                self.params.callback({
+                    'signal': 'buy' if self.a_last_position.size > 0 else 'sell',
+                    'price': self.data.close[0],
+                    'datetime': self.datas[0].datetime.datetime(0)
+                })
 
         if txt == 'CLOSE':
             self.a_calculated_profit += self.a_last_position.size * (self.data.close[0] - self.a_last_position.price)
@@ -124,6 +131,8 @@ class MACDStrategy(bt.Strategy):
         if self.buy_signal and self.params.enable_long_strategy:
             if self.a_log_trade - 1 == self.a_total_closed_positions:
                 print("buy signal")
+            
+            
             self.a_signal = "buy"
             self.a_SL_or_TP_hit = False
 
@@ -135,6 +144,8 @@ class MACDStrategy(bt.Strategy):
         if self.sell_signal and self.params.enable_short_strategy:
             if self.a_log_trade - 1 == self.a_total_closed_positions:
                 print("sell signal")
+            
+                
             self.a_signal = "sell"
             self.a_SL_or_TP_hit = False
             self.close_long()
