@@ -5,6 +5,13 @@ class Position:
         self.size = 0
         self.price = 0
         self.time = None
+class BuySellMarker(bt.Indicator):
+    lines = ('buy', 'sell',)
+    plotinfo = dict(plot=True, subplot=False)
+    plotlines = dict(
+        buy=dict(marker='^', markersize=8.0, color='green', fillstyle='full'),
+        sell=dict(marker='v', markersize=8.0, color='red', fillstyle='full'),
+    )
 
 class MACDStrategy(bt.Strategy):
     params = (
@@ -55,6 +62,9 @@ class MACDStrategy(bt.Strategy):
         # Custom counters for `barssince`
         self.bars_since_oversold = None
         self.bars_since_overbought = None
+        
+        self.markers = {data._name: BuySellMarker(data) for data in self.datas}
+
 
     def log(self, txt):
         dt = self.datas[0].datetime.datetime(0)
@@ -141,6 +151,8 @@ class MACDStrategy(bt.Strategy):
                 if self.buy_signal and self.params.enable_long_strategy:
                     if self.a_log_trade - 1 == self.a_total_closed_positions or self.params.log:
                         print("buy signal")
+                        self.markers[data._name].lines.buy[0] = data.close[0]
+
                     self.a_signal = "buy"
                     self.a_SL_or_TP_hit = False
 
@@ -153,6 +165,7 @@ class MACDStrategy(bt.Strategy):
                 if self.sell_signal and self.params.enable_short_strategy:
                     if self.a_log_trade - 1 == self.a_total_closed_positions or self.params.log:
                         print("sell signal")
+                        self.markers[data._name].lines.sell[0] = data.close[0]
                     self.a_signal = "sell"
                     self.a_SL_or_TP_hit = False
                     if self.params.enable_trading and status == 0:
