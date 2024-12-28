@@ -8,13 +8,14 @@ class Position:
 
 class MACDStrategy(bt.Strategy):
     params = (
-        ('cash_minus', 10),
+        ('enable_trading', False),
+        ('cash_minus', 10), # Cash to keep aside for fees
         ('enable_long_strategy', True),
         ('long_stoploss', 5),  # percent
-        ('long_takeprofit', 2),
+        ('long_takeprofit', 3),
         ('enable_short_strategy', True),
-        ('short_stoploss', 4),
-        ('short_takeprofit', 4),
+        ('short_stoploss', 2),
+        ('short_takeprofit', 3),
         ('rsi_period', 14),
         ('rsi_overbought', 70),
         ('rsi_oversold', 30),
@@ -26,6 +27,7 @@ class MACDStrategy(bt.Strategy):
         ('end_date', None),
         ('lookback_bars', 10),
         ('ws_url', 'ws://localhost:8765'),
+        ('log', False),
     )
 
     def __init__(self):
@@ -105,7 +107,7 @@ class MACDStrategy(bt.Strategy):
     def next(self):
         print("==============Next==============")
         for data in self.datas:  # Running through all the requested bars of all tickers
-            print(f"Data: {data._name}")
+            # print(f"Data: {data._name}")
             ticker = data._name
             status = data._state  # 0 - Live data, 1 - History data, 2 - None
 
@@ -113,51 +115,53 @@ class MACDStrategy(bt.Strategy):
                 if status: _state = "False - History data"
                 else: _state = "True - Live data"
 
-                if status == 0:
-                    print(f"Ticker: {ticker} - Live data")
+                # print(f"Ticker: {ticker}, length of datas: {len(self.datas)}")
+                print(f"datetime: {data.datetime.datetime(0)} Price: {data.close[0]} Status: {_state}")
 
-                    if self.rsi[0] <= self.params.rsi_oversold:
-                        self.bars_since_oversold = 0  # Reset counter
-                    elif self.bars_since_oversold is not None:
-                        self.bars_since_oversold += 1
+                if self.rsi[0] <= self.params.rsi_oversold:
+                    self.bars_since_oversold = 0  # Reset counter
+                elif self.bars_since_oversold is not None:
+                    self.bars_since_oversold += 1
 
-                    if self.rsi[0] >= self.params.rsi_overbought:
-                        self.bars_since_overbought = 0  # Reset counter
-                    elif self.bars_since_overbought is not None:
-                        self.bars_since_overbought += 1
+                if self.rsi[0] >= self.params.rsi_overbought:
+                    self.bars_since_overbought = 0  # Reset counter
+                elif self.bars_since_overbought is not None:
+                    self.bars_since_overbought += 1
 
-                    # Generate signals
-                    was_oversold = self.bars_since_oversold is not None and self.bars_since_oversold <= self.params.lookback_bars
-                    was_overbought = self.bars_since_overbought is not None and self.bars_since_overbought <= self.params.lookback_bars
-                    crossover_bull = self.macd.macd[0] > self.macd.signal[0]
-                    crossover_bear = self.macd.macd[0] < self.macd.signal[0]
+                # Generate signals
+                was_oversold = self.bars_since_oversold is not None and self.bars_since_oversold <= self.params.lookback_bars
+                was_overbought = self.bars_since_overbought is not None and self.bars_since_overbought <= self.params.lookback_bars
+                crossover_bull = self.macd.macd[0] > self.macd.signal[0]
+                crossover_bear = self.macd.macd[0] < self.macd.signal[0]
 
-                    self.buy_signal = was_oversold and crossover_bull
-                    self.sell_signal = was_overbought and crossover_bear
+                self.buy_signal = was_oversold and crossover_bull
+                self.sell_signal = was_overbought and crossover_bear
 
-                    # Long Strategy
-                    if self.buy_signal and self.params.enable_long_strategy:
-                        if self.a_log_trade - 1 == self.a_total_closed_positions:
-                            print("buy signal")
-                        self.a_signal = "buy"
-                        self.a_SL_or_TP_hit = False
+                # Long Strategy
+                if self.buy_signal and self.params.enable_long_strategy:
+                    if self.a_log_trade - 1 == self.a_total_closed_positions or self.params.log:
+                        print("buy signal")
+                    self.a_signal = "buy"
+                    self.a_SL_or_TP_hit = False
 
+                    if self.params.enable_trading and status == 0:
                         self.close_short()
                         if self.a_position_closed and not self.a_wait_for_order_completion:
                             self.buy(size=(self.broker.getValue()- self.params.cash_minus) / self.data.close[0])
 
-                    # Short Strategy
-                    if self.sell_signal and self.params.enable_short_strategy:
-                        if self.a_log_trade - 1 == self.a_total_closed_positions:
-                            print("sell signal")
-                        self.a_signal = "sell"
-                        self.a_SL_or_TP_hit = False
+                # Short Strategy
+                if self.sell_signal and self.params.enable_short_strategy:
+                    if self.a_log_trade - 1 == self.a_total_closed_positions or self.params.log:
+                        print("sell signal")
+                    self.a_signal = "sell"
+                    self.a_SL_or_TP_hit = False
+                    if self.params.enable_trading and status == 0:
                         self.close_long()
                         if self.a_position_closed and not self.a_wait_for_order_completion:
                             self.sell(size=((self.broker.getValue()- self.params.cash_minus) / self.data.close[0]))
 
-                    if not self.a_position_closed:
-                        self.set_stop_loss_take_profit()
+                if not self.a_position_closed:
+                    self.set_stop_loss_take_profit()
 
     def set_stop_loss_take_profit(self):
         stop_loss = None

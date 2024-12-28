@@ -24,29 +24,29 @@ async def start_server():
 
 if __name__ == '__main__':
     # Start WebSocket server
-    asyncio.run(start_server())
-
+    # start_server()
+    # print("Next after WebSocket server started")
     
-    # cerebro = bt.Cerebro(quicknotify=True)
+    cerebro = bt.Cerebro(quicknotify=True)
 
-    # coin_target = 'USDT'
-    # symbol = 'BTC' + coin_target
+    coin_target = 'USDT'
+    symbol = 'BTC' + coin_target
 
-    # store = BinanceStore(
-    #     api_key=Config.BINANCE_API_KEY,
-    #     api_secret=Config.BINANCE_API_SECRET,
-    #     coin_target=coin_target,
-    #     testnet=Config.TESTNET)
+    store = BinanceStore(
+        api_key=Config.BINANCE_API_KEY,
+        api_secret=Config.BINANCE_API_SECRET,
+        coin_target=coin_target,
+        testnet=Config.TESTNET)
 
-    # broker = store.getbroker()
-    # cerebro.setbroker(broker)
+    broker = store.getbroker()
+    cerebro.setbroker(broker)
 
-    # from_date = dt.datetime.now(dt.UTC) - dt.timedelta(hours=48)
-    # data = store.getdata(timeframe=bt.TimeFrame.Minutes, compression=3, dataname=symbol, start_date=from_date, LiveBars=True)
+    from_date = dt.datetime.now() - dt.timedelta(hours=24)
+    data = store.getdata(timeframe=bt.TimeFrame.Minutes, compression=3, dataname=symbol, start_date=from_date, LiveBars=False)
 
-    # cerebro.adddata(data)
+    cerebro.adddata(data)
 
-    # cerebro.addstrategy(MACDStrategy)
+    cerebro.addstrategy(MACDStrategy, enable_trading=False, log=True, lookback_bars=55)
 
-    # cerebro.run()
-    # cerebro.plot()
+    cerebro.run()
+    cerebro.plot()
