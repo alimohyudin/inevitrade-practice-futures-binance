@@ -73,9 +73,13 @@ class MACDStrategy(bt.Strategy):
             self.a_position_closed = True
             self.a_last_position.size = 0
             self.a_last_position.price = 0
-            if self.a_total_closed_positions >= self.a_max_trades:
-                self.print_results()
-                exit()
+            
+            if self.params.callback:
+                self.params.callback({
+                    'signal': 'close',
+                    'price': self.data.close[0],
+                    'datetime': self.datas[0].datetime.datetime(0)
+                })
 
     def notify_order(self, order):
         if order.status in [order.Completed]:
