@@ -1,7 +1,7 @@
 import backtrader as bt
 import datetime
 from strategy.MACDStrategy import MACDStrategy
-from fetch_binance_data.fetch_data import fetch_1year_data
+from fetch_data import fetch_1year_data
 
 # Fetch 1 year of data
 fetch_1year_data('BTCUSDT')
