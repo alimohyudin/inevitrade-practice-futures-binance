@@ -25,6 +25,7 @@ class MACDStrategy(bt.Strategy):
         ('start_date', None),
         ('end_date', None),
         ('lookback_bars', 10),
+        ('ws_url', 'ws://localhost:8765'),
     )
 
     def __init__(self):

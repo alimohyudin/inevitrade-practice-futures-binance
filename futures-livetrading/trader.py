@@ -3,31 +3,50 @@ from backtrader_binance_futures import BinanceStore
 from ConfigBinance.Config import Config  # Configuration file
 import datetime as dt
 from strategy.MACDStrategy import MACDStrategy
+import asyncio
+import websockets
 
+# WebSocket server handler
+async def echo_server(websocket):
+    print(f"Client connected: {websocket.remote_address}")
+    try:
+        async for message in websocket:
+            print(f"Received message: {message}")
+            # Echo the message back to the client
+            await websocket.send(f"Echo: {message}")
+    except websockets.ConnectionClosed as e:
+        print(f"Client disconnected: {e}")
+
+async def start_server():
+    server = await websockets.serve(echo_server, "localhost", 8765)
+    print("WebSocket server started on ws://localhost:8765")
+    await server.wait_closed()
 
 if __name__ == '__main__':
-    cerebro = bt.Cerebro(quicknotify=True)
+    # Start WebSocket server
+    asyncio.run(start_server())
 
-    coin_target = 'USDT'  # the base ticker in which calculations will be performed
-    symbol = 'BTC' + coin_target  # the ticker by which we will receive data in the format <CodeTickerBaseTicker>
+    
+    # cerebro = bt.Cerebro(quicknotify=True)
 
-    store = BinanceStore(
-        api_key=Config.BINANCE_API_KEY,
-        api_secret=Config.BINANCE_API_SECRET,
-        coin_target=coin_target,
-        testnet=Config.TESTNET)  # Binance Storage
+    # coin_target = 'USDT'
+    # symbol = 'BTC' + coin_target
 
-    # live connection to Binance - for Offline comment these two lines
-    broker = store.getbroker()
-    cerebro.setbroker(broker)
+    # store = BinanceStore(
+    #     api_key=Config.BINANCE_API_KEY,
+    #     api_secret=Config.BINANCE_API_SECRET,
+    #     coin_target=coin_target,
+    #     testnet=Config.TESTNET)
 
-    # Historical 1-minute bars for the last hour + new live bars / timeframe M1
-    from_date = dt.datetime.now(dt.UTC) - dt.timedelta(hours=48)
-    data = store.getdata(timeframe=bt.TimeFrame.Minutes, compression=3, dataname=symbol, start_date=from_date, LiveBars=True)
+    # broker = store.getbroker()
+    # cerebro.setbroker(broker)
 
-    cerebro.adddata(data)  # Adding data
+    # from_date = dt.datetime.now(dt.UTC) - dt.timedelta(hours=48)
+    # data = store.getdata(timeframe=bt.TimeFrame.Minutes, compression=3, dataname=symbol, start_date=from_date, LiveBars=True)
 
-    cerebro.addstrategy(MACDStrategy)  # Adding a trading system
+    # cerebro.adddata(data)
 
-    cerebro.run()  # Launching a trading system
-    cerebro.plot()  # Draw a chart
+    # cerebro.addstrategy(MACDStrategy)
+
+    # cerebro.run()
+    # cerebro.plot()
