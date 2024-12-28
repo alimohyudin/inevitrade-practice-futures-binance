@@ -7,7 +7,7 @@ data = bt.feeds.GenericCSVData(
     dataname='./data/BTCUSDT.csv',  # Replace with your data file path
     dtformat='%m-%d-%YT%H:%M:%S.000Z',  # New format to match '2024-12-01T00:00:00.000Z'
     timeframe=bt.TimeFrame.Minutes,
-    fromdate=datetime.datetime(2024, 10, 1),
+    fromdate=datetime.datetime(2024, 12, 16),
     todate=datetime.datetime(2024, 12, 31),
     compression=3,
     openinterest=-1,
@@ -16,7 +16,7 @@ print(len(data))
 cerebro.adddata(data)
 
 # Add strategy
-cerebro.addstrategy(MACDStrategy, enable_trading=False, log=True, lookback_bars=55)
+cerebro.addstrategy(MACDStrategy, lookback_bars=55)
 
 # Run
 cerebro.broker.setcash(1000)
